@@ -1,0 +1,100 @@
+﻿@page "/students"
+@using System.Data;
+@using ClosedXML.Excel;
+@using TablePractis.Client.Services;
+@using TablePractis.Shared;
+@inject IJSRuntime JS
+@inject IStudentService studentService
+@inject NavigationManager navTo
+
+@if (IsCompleted == 1)
+{
+	<h1 class="spinner-border"></h1>
+}
+else if (IsCompleted == 2)
+{
+	<div>
+		<table class="table table-success">
+			<tbody>
+				<tr>
+					<th>ID</th>
+					<th>Name</th>
+					<th>First Name</th>
+					<th>Last Name</th>
+					<th>Email</th>
+				</tr>
+				@foreach (var std in studentService.Students)
+				{
+					<tr>
+						<td>@std.Id</td>
+						<td>@std.Name</td>
+						<td>@std.FirstName</td>
+						<td>@std.LastName</td>
+						<td>@std.Email</td>
+						<td>
+							<button class="btn btn-danger" @onclick="(() => DeleteStudent(std.Id))"><i class="oi oi-pencil"></i></button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<br />
+		<button class="btn btn-success" @onclick="navigatorC">Add New</button>
+		<button class="btn btn-success" @onclick="navigatorI">BACK</button>
+		<button @onclick="ExportStudentToExceltow">Export To Excel</button>
+	</div>
+}
+@code {
+	public int IsCompleted = 1;
+	public int ID = 0;
+	protected override async Task OnInitializedAsync()
+	{
+		await studentService.GetStudents();
+		IsCompleted = 2;
+	}
+	public async Task navigatorC()
+	{
+		navTo.NavigateTo("/Create");
+	}
+	public async Task navigatorI()
+	{
+		navTo.NavigateTo("/");
+	}
+	async Task DeleteStudent(int id)
+	{
+		await studentService.DeleteStudent(id);
+		await navigator();
+	}
+	public async Task navigator()
+	{
+		navTo.NavigateTo("/students", true);
+	}
+	public async Task ExportStudentToExceltow()
+	{
+		DataTable dataTable = new DataTable("Student");
+		dataTable.Columns.AddRange(new DataColumn[]
+		{ // header
+				new DataColumn("Id"),
+				new DataColumn("Name"),
+				new DataColumn("FirstName"),
+				new DataColumn("LastName"),
+				new DataColumn("Email")
+		});
+		foreach (var student in studentService.Students)
+		{ // values
+			dataTable.Rows.Add(student.Id, student.Name, student.FirstName, student.LastName, student.Email);
+		}
+		using (XLWorkbook wb = new XLWorkbook())
+		{
+			wb.Worksheets.Add(dataTable);
+			using (MemoryStream stream = new MemoryStream())
+			{
+				wb.SaveAs(stream);
+				var fileBytes = stream.ToArray();
+				var fileName = $"FirstEdition{DateTime.Now.ToString("yyyy-mm-dd", System.Globalization.CultureInfo.InvariantCulture)}.xlsx";
+				await JS.InvokeAsync<object>("saveAsFile", fileName,
+			Convert.ToBase64String(fileBytes));
+			}
+		}
+	}
+}
