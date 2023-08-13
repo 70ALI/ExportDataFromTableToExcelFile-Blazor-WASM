@@ -1,0 +1,65 @@
+first step : download ClosedXML package in NUGet package
+------------------------------------------------------------
+second step : Excel file
+
+client page razor component
+
+@using System.Data;
+@using ClosedXML.Excel;
+@inject IJSRuntime JS
+
+
+			// Export button
+		<button @onclick="ExportStudentToExceltow">Export To Excel</button>
+
+
+
+
+
+public async Task ExportStudentToExceltow()
+	{
+		DataTable dataTable = new DataTable("Student");
+		dataTable.Columns.AddRange(new DataColumn[]
+		{ // header 
+				new DataColumn("Id"),
+				new DataColumn("Name"),
+				new DataColumn("FirstName"),
+				new DataColumn("LastName"),
+				new DataColumn("Email")
+		});
+		foreach (var student in studentService.Students)
+		{ // values
+			dataTable.Rows.Add(student.Id, student.Name, student.FirstName, student.LastName, student.Email);
+		}
+		using (XLWorkbook wb = new XLWorkbook())
+		{
+			wb.Worksheets.Add(dataTable);
+			using (MemoryStream stream = new MemoryStream())
+			{
+				wb.SaveAs(stream);
+				var fileBytes = stream.ToArray();
+				var fileName = $"FirstEdition{DateTime.Now.ToString("yyyy-mm-dd", System.Globalization.CultureInfo.InvariantCulture)}.xlsx";
+				await JS.InvokeAsync<object>("saveAsFile", fileName,
+			Convert.ToBase64String(fileBytes));
+			}
+		}
+	}
+
+
+--------------------------------------------------------------------------------------------------
+third step : JavaScript
+
+wwwroot  index.html
+
+
+
+    <script type="text/javascript">
+        function saveAsFile(fileName, byteBase64) {
+            var link = this.document.createElement('a');
+            link.download = fileName;
+            link.href = "data:application/octet-stream;base64," + byteBase64;
+            this.document.body.appendChild(link);
+            link.click();
+            this.document.body.removeChild(link);
+        }
+    </script>
